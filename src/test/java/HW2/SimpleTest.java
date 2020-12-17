@@ -39,4 +39,24 @@ public class SimpleTest extends AbstractTest{
         ret = Solution.deleteTest(1,1);
         assertEquals(ReturnValue.OK, ret);
     }
+
+    @org.junit.Test
+    public void getProfileTest(){
+        Test test = new Test();
+        test.setId(1);
+        test.setSemester(1);
+        test.setTime(1);
+        test.setDay(1);
+        test.setRoom(233);
+        test.setCreditPoints(3);
+
+        ReturnValue ret = Solution.addTest(test);
+        assertEquals(ReturnValue.OK, ret);
+
+        Test getProfileTest = Solution.getTestProfile(1,1);
+        assertEquals(getProfileTest, test);
+
+        ret = Solution.deleteTest(1,1);
+        assertEquals(ReturnValue.OK, ret);
+    }
 }

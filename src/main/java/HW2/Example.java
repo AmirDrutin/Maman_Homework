@@ -201,8 +201,8 @@ public class Example {
             pstmt.setInt(3,2);
             pstmt.setString(4,"goodbye world!");
 
-
             pstmt.execute();
+
 
         } catch (SQLException e) {
             //e.printStackTrace()();
