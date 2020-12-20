@@ -703,12 +703,6 @@ public class Solution {
     }
 
     public static ReturnValue supervisorStopsOverseeTest(Integer supervisorID, Integer testID, Integer semester) {
-        /*
-        DELETE FROM overseeing
-        WHERE supervisorID=(SELECT id from supervisor WHERE id=${supervisorID})
-        AND (testID,semester)=(SELECT id, semester from tests WHERE id=${testID} AND semester=${semester})
-
-        */
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -744,14 +738,6 @@ public class Solution {
     }
 
     public static Float averageTestCost() {
-        /*
-            SELECT AVG(average_test) FROM (
-                SELECT AVG(salary) AS average_test
-                FROM (SELECT * FROM Overseeing AS O INNER JOIN
-                 Supervisor AS S ON O.supervisorID=S.supervisorID)
-                GROUP BY testID, semester
-            )
-        */
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -781,13 +767,6 @@ public class Solution {
     }
 
     public static Integer getWage(Integer supervisorID) {
-        /*
-        TODO: add views: attendance, overseeing, regular tables
-        SELECT SUM(salary) FROM supervisors_overseeing WHERE supervisorID=${supervisorID}
-        output:
-            -1 if error
-        */
-
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -818,18 +797,6 @@ public class Solution {
     }
 
     public static ArrayList<Integer> supervisorOverseeStudent() {
-        /*
-            SELECT studentID from (
-                SELECT studentID,supervisorID
-                FROM Attendance
-                INNER JOIN Overseeing
-                ON (Attendance.testID, Attendance.semester)=
-                 (Overseeing.testID,Overseeing.semester)
-                 GROUP BY studentID, supervisorID
-                 HAVING count(*) > 1
-               )
-               ORDER BY studentID DESC
-        */
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         ArrayList<Integer> returnList = new ArrayList<Integer>();
@@ -864,12 +831,6 @@ public class Solution {
     }
 
     public static ArrayList<Integer> testsThisSemester(Integer semester) {
-        /*
-            SELECT TOP 5 testID FROM test
-            WHERE Semester=${semester}
-            ORDER BY testID DESC
-
-        */
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         ArrayList<Integer> returnList = new ArrayList<Integer>();
@@ -942,11 +903,6 @@ public class Solution {
     }
 
     public static Integer studentCreditPoints(Integer studentID) {
-        /*
-            SELECT creditPoints
-            +(SELECT SUM(TestCreditPoints) FROM attendance WHERE studentID=${studentID})
-             FROM student WHERE studentID=${studentID}
-        */
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -978,14 +934,6 @@ public class Solution {
     }
 
     public static Integer getMostPopularTest(String faculty) {
-        /*
-            SELECT TOP 1 testID FROM (SELECT testID, COUNT(*) AS testCount
-            FROM attendance
-            WHERE faculty=${faculty}
-            GROUP BY testID
-            ORDER BY testCount, testID DESC
-            )
-        */
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -1024,13 +972,6 @@ public class Solution {
     }
 
     public static ArrayList<Integer> getConflictingTests() {
-        /*
-            SELECT t1.testID
-            FROM test AS t1, test AS t2
-            WHERE (t1.testID <> t2.testID OR t1.semester<>t2.semester)
-            AND (t1.semester=t2.semester AND t1.day=t2.day AND t1.time=t2.time)
-            ORDER BY testID ASC
-        */
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         ArrayList<Integer> returnList = new ArrayList<Integer>();
@@ -1038,7 +979,8 @@ public class Solution {
             pstmt = connection.prepareStatement(
                     "SELECT A.test_id\n" +
                             "FROM test AS A, test AS B\n" +
-                            "WHERE A.semester = B.semester\n" +
+                            "WHERE A.test_id <> B.test_id\n" +
+                            "AND A.semester = B.semester\n" +
                             "AND A.time = B.time\n" +
                             "AND A.day = B.day\n" +
                             "ORDER BY A.test_id ASC");
@@ -1101,24 +1043,6 @@ public class Solution {
         PreparedStatement pstmt = null;
         ArrayList<Integer> returnList = new ArrayList<Integer>();
         try {
-            /*pstmt = connection.prepareStatement(
-                    "SELECT T.id\n" +
-                            "FROM (\n" +
-                            "SELECT A.student_id , B.student_id AS id, count(*) as count\n" +
-                            "from attendance AS A, attendance AS B\n" +
-                            "WHERE A.student_id = ? \n" +
-                            "AND A.test_id = B.test_id\n" +
-                            "AND A.semester = B.semester\n" +
-                            "AND B.student_id != ?\n" +
-                            "GROUP BY A.student_id, B.student_id\n" +
-                            ") AS T\n" +
-                            "WHERE T.count >= (\n" +
-                            "SELECT count(*)\n" +
-                            "FROM attendance\n" +
-                            "WHERE student_id = ?\n" +
-                            ")/2.0\n" +
-                            "ORDER BY T.id DESC\n" +
-                            "LIMIT 10");*/
             pstmt = connection.prepareStatement("SELECT T.id\n" +
                     "FROM (\n" +
                     "\tSELECT A.student_id , B.student_id AS id, count(*) as count\n" +
@@ -1126,7 +1050,7 @@ public class Solution {
                     "\tWHERE A.student_id = ?\n" +
                     "\tAND A.test_id = B.test_id\n" +
                     "\tAND A.semester = B.semester\n" +
-                    "\tAND B.student_id != ?\n" +
+                    "\tAND B.student_id <> ?\n" +
                     "\tGROUP BY A.student_id, B.student_id\n" +
                     ") AS T\n" +
                     "WHERE T.count >= (\n" +
@@ -1134,11 +1058,13 @@ public class Solution {
                     "\tFROM attendance\n" +
                     "\tWHERE student_id = ?\n" +
                     ")/2.0\n" +
+                    "ORDER BY id DESC\n" +
+                    "LIMIT 10\n"+
                     "\n" +
                     "UNION\n" +
                     "SELECT student_id AS id\n" +
                     "FROM student\n" +
-                    "WHERE student_id != ?\n" +
+                    "WHERE student_id <> ?\n" +
                     "AND NOT EXISTS(\n" +
                     "\tSELECT *\n" +
                     "\tFROM attendance\n" +
